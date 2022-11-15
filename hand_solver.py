@@ -8,7 +8,6 @@ import os, psutil
 from cvxpy_solve import ComputeLP
 
 LB = 1e-9
-PERT = 1e-6
 
 class simplex_cano_solver:
     
@@ -33,19 +32,26 @@ class simplex_cano_solver:
         c = c.astype("float64")
 
         
+        
+
+        # maxin = np.max([np.max(np.abs(A)), np.max(np.abs(b))])
+        # maxin = np.max(np.abs(b))
+        # self.PERT = maxin * 1e-3
+        self.PERT = 1e-3
+
+        if perturb:
+
+            pert = np.random.uniform(-self.PERT, self.PERT, size = len(b))
+            # pert2 = np.random.uniform(-self.PERT, self.PERT, size = A.shape)
+
+            b += pert
+
+            # A += pert2
+
         neg_idx = np.where(b < 0)[0]
         
         A[neg_idx] = -A[neg_idx]
         b[neg_idx] = -b[neg_idx]
-
-        if perturb:
-
-            pert = np.random.uniform(-PERT, PERT, size = len(b))
-            pert2 = np.random.uniform(-PERT, PERT, size = A.shape)
-
-            b += pert
-
-            A += pert2
         
         
         self.A = A
@@ -58,6 +64,7 @@ class simplex_cano_solver:
         if len(basis) == 0:
             
             self.find_basis()
+
             
         else:
             
@@ -125,6 +132,7 @@ class simplex_cano_solver:
             
             rule = self.rule
         
+        
         assert np.min(self.b) > 0
         
         count = 0
@@ -144,31 +152,15 @@ class simplex_cano_solver:
 
             if self.demo:
 
-                if count%400 == 0:
+                if count%1000 == 0:
 
                     print("iter ",count)
                     print("time elapse ",time.time()-start_time)
                     process = psutil.Process(os.getpid())
                     print("memory usage ",process.memory_info().rss)  # in bytes 
 
-
-                    '''
-                    temp = psutil.sensors_temperatures()
-                    print("cpu temperature ",temp)
-
-                    while True:
-
-                        if temp < 90:
-
-                            break
-
-                        else:
-
-                            time.sleep(5)
-                            temp = psutil.sensors_temperatures()
-                            print("cpu temperature ",temp)
-
-                    '''
+                    time.sleep(5)
+                    
             
             ## rounding
             self.rounding(LB)
@@ -262,14 +254,16 @@ class simplex_cano_solver:
             print(state)
             
             raise Exception("basis not found!")
-            
+
+        '''   
         opt = new_probins.get_min_val()
         
-        if opt > 10 * PERT:
+        if opt > 1e-1 * self.n_eq * self.PERT:
             
             print(opt)
             
             raise Exception("problem infeasible!")
+        '''
             
         
             
@@ -280,6 +274,11 @@ class simplex_cano_solver:
         bad_idxes = candidate_idx[candidate_idx >= self.n_var]
         
         if len(bad_idxes) > 0:
+
+            print(self.n_eq)
+            print(len(bad_idxes))
+            print(self.PERT)
+            print(self.b[candidate_idx >= self.n_var])
 
             raise Exception("problem degenerate")
 
@@ -311,7 +310,7 @@ if __name__ == "__main__":
 
     c = np.random.randint(1, 2, size = 2*N)
 
-    solver = simplex_cano_solver(A, b, c, rule = "bland", perturb = True, demo = True)
+    solver = simplex_cano_solver(A, b, c, rule = "standard", perturb = True, demo = True)
 
     solver.solve()
 
